@@ -1,0 +1,63 @@
+<header class="encabezado">
+  <h1>{{ sesion.soloSuArea() ? 'Mi equipo' : 'Trabajadores' }}</h1>
+  <p class="sub">{{ total }} trabajador{{ total === 1 ? '' : 'es' }}</p>
+</header>
+
+<div class="filtros">
+  <input class="buscar" type="search" [formControl]="buscar" placeholder="Buscar por nombre, RUT o correo...">
+  <!-- Jefatura ya ve solo su área (lo fuerza el backend): el filtro solo aparece a quien ve toda la empresa. -->
+  @if (!sesion.soloSuArea()) {
+    <div class="filtro-area">
+      <app-buscador-catalogo [opciones]="areas" [control]="area" placeholder="Filtrar por área..." />
+    </div>
+  }
+  <select [value]="estado" (change)="cambiarEstado($any($event.target).value)">
+    <option value="Todos">Todos los estados</option>
+    <option value="Activos">Solo activos</option>
+    <option value="Inactivos">Solo inactivos</option>
+  </select>
+  <app-descargar-reporte ruta="/Trabajador/exportar" [filtros]="$any(filtros)" />
+</div>
+
+<section class="tarjeta">
+  @if (error) {
+    <p class="mensaje">{{ error }}</p>
+  } @else if (cargando) {
+    <p class="mensaje">Cargando...</p>
+  } @else if (filas.length === 0) {
+    <p class="mensaje">No hay trabajadores para este filtro.</p>
+  } @else {
+    <div class="tabla-scroll">
+      <table>
+        <thead>
+          <tr><th>Nombre</th><th>RUT</th><th>Área</th><th>Cargo</th><th>Estado</th></tr>
+        </thead>
+        <tbody>
+          @for (t of filas; track t.id) {
+            <tr (click)="abrir(t.id)">
+              <td>
+                <div class="persona">
+                  <span class="avatar">{{ t.iniciales }}</span>
+                  <div><div>{{ t.nombre }}</div><div class="correo">{{ t.correo }}</div></div>
+                </div>
+              </td>
+              <td>{{ t.rut }}</td>
+              <td>{{ t.area }}</td>
+              <td>{{ t.cargo }}</td>
+              <td><span class="badge" [class.activo]="t.activo" [class.inactivo]="!t.activo">{{ t.activo ? 'Activo' : 'Inactivo' }}</span></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="paginacion">
+      <span>{{ desde }}–{{ hasta }} de {{ total }}</span>
+      <div class="controles">
+        <button (click)="irA(pagina - 1)" [disabled]="pagina <= 1">← Anterior</button>
+        <span>Página {{ pagina }} de {{ totalPaginas }}</span>
+        <button (click)="irA(pagina + 1)" [disabled]="pagina >= totalPaginas">Siguiente →</button>
+      </div>
+    </footer>
+  }
+</section>

@@ -1,0 +1,139 @@
+<header class="encabezado">
+  <p class="migas">Nueva solicitud / Ingreso</p>
+  <h1>Nueva solicitud — Ingreso</h1>
+</header>
+
+<div class="cuerpo">
+  <form [formGroup]="form" (ngSubmit)="enviar()">
+
+    @if (solicitudOrigenId) {
+      <div class="aviso-correccion">Corrigiendo el Ingreso N° {{ solicitudOrigenId }}, que fue rechazado. Se precargaron sus datos; revisa y corrige lo necesario.</div>
+    }
+
+    @if (errores.length) {
+      <div class="alerta">@for (e of errores; track e) { <div>{{ e }}</div> }</div>
+    }
+
+    <section class="tarjeta">
+      <h4>Antecedentes del trabajador</h4>
+      <div class="grid-2">
+       <div class="campo">
+          <label class="obligatorio">RUT</label>
+          <input class="req" formControlName="rut" (input)="onRutInput($event)" (blur)="verificarRut()" placeholder="12.345.678-9">
+          @if (verificandoRut) {
+            <span class="hint">Verificando RUT...</span>
+          } @else if (rutMensaje) {
+            <span class="error-campo">{{ rutMensaje }}</span>
+          }
+        </div>
+</div>
+      @if (!rutListo) { <p class="hint">Ingresa primero el RUT: con él se verifica si la persona ya trabajó en MAF y se genera su correo.</p> }
+      <!-- El resto se habilita cuando el backend valida el RUT -->
+      <fieldset class="bloqueo" [disabled]="!rutListo">
+        <div class="campo">
+          <label class="obligatorio">Sexo</label>
+          <select class="req" formControlName="sexo">
+            <option value="" disabled selected>— Seleccionar —</option>
+            <option value="Femenino">Femenino</option>
+            <option value="Masculino">Masculino</option>
+            <option value="Prefiere no informar">Prefiere no informar</option>
+          </select>
+        </div>
+       <div class="campo"><label class="obligatorio">Primer Nombre</label><input class="req" formControlName="primerNombre" (input)="onNombreInput($event, 'primerNombre')" (blur)="buscarCorreoSugerido()" placeholder="Juan"></div>
+        <div class="campo"><label>Segundo Nombre <span class="opcional">(opcional)</span></label><input formControlName="segundoNombre" (input)="onNombreInput($event, 'segundoNombre')" placeholder="Andrés"></div>
+        <div class="campo"><label class="obligatorio">Primer Apellido</label><input class="req" formControlName="primerApellido" (input)="onNombreInput($event, 'primerApellido')" (blur)="buscarCorreoSugerido()" placeholder="Pérez"></div>
+        <div class="campo"><label>Segundo Apellido <span class="opcional">(opcional)</span></label><input formControlName="segundoApellido" (input)="onNombreInput($event, 'segundoApellido')" (blur)="buscarCorreoSugerido()" placeholder="González"></div>
+        <div class="campo">
+          <label class="obligatorio">Fecha de nacimiento</label>
+          <input type="date" class="req" formControlName="fechaNacimiento" [min]="fechaMinNacimiento" [max]="fechaMaxNacimiento">
+          @if (form.get('fechaNacimiento')?.hasError('edadInvalida') && form.get('fechaNacimiento')?.touched) {
+            <span class="error-campo">La edad debe estar entre 18 y 75 años.</span>
+          }
+</div>
+      </fieldset>
+    </section>
+
+    <fieldset class="bloqueo" [disabled]="!rutListo">
+    <section class="tarjeta">
+      <h4 class="obligatorio">Correo institucional</h4>
+      @if (buscandoCorreo) { <p class="hint">Buscando un correo disponible...</p> }
+      @else if (esReincorporacion) { <p class="hint ok">Esta persona trabajó antes en MAF — se reutiliza su correo anterior: {{ correoSugerido }}</p> }
+      @else if (correoSugerido) { <p class="hint ok">Sugerido automáticamente: {{ correoSugerido }}</p> }
+      @else if (!correoDisponible) {
+        <!-- Correo escrito a mano: rojo hasta que cumpla la regla, verde cuando la cumple -->
+        @if (!correoManualCumple) { <p class="hint alerta-texto">Ese correo ya existe. Ingresa tu Segundo apellido para generar otro correo</p> }
+        @else if (!erroresCorreo.length) { <p class="hint ok">Formato de correo válido.</p> }
+      }
+      @else { <p class="hint">Ingresa nombre y apellido para generar el correo sugerido.</p> }
+      <input class="input-correo req" [class.con-error]="erroresCorreo.length" formControlName="correo" (input)="onCorreoInput($event)" placeholder="jpereza@mafchile.com">
+      @for (e of erroresCorreo; track e) { <p class="hint alerta-texto error-correo">{{ e }}</p> }
+    </section>
+
+    <section class="tarjeta">
+      <h4>Datos organizacionales</h4>
+      <div class="grid-2">
+        <div class="campo">
+          <label class="obligatorio">Dirección Corporativa</label>
+          <select class="req" formControlName="direccionCorporativaId">
+            <option value="" disabled selected>— Seleccionar —</option>
+            @for (d of direcciones; track d.id) { <option [value]="d.id">{{ d.nombre }}</option> }
+          </select>
+        </div>
+        <div class="campo">
+          <label class="obligatorio">Área</label>
+          <select class="req" formControlName="areaId">
+            <option value="" disabled selected>{{ form.get('direccionCorporativaId')?.value ? '— Seleccionar —' : '— Primero elige una dirección —' }}</option>
+            @for (a of areas; track a.id) { <option [value]="a.id">{{ a.nombre }}</option> }
+          </select>
+        </div>
+        
+        <div class="campo">
+          <label class="obligatorio">Cargo</label>
+          <app-buscador-catalogo class="req-buscador" [class.lleno]="!!form.get('cargoId')?.value" [opciones]="cargos" [control]="form.get('cargoId')!" placeholder="Escribe para buscar un cargo..." />
+      </div>
+
+
+        <div class="campo">
+          <label class="obligatorio">Lugar de Trabajo</label>
+          <select class="req" formControlName="lugarTrabajoId">
+            <option value="" disabled selected>— Seleccionar —</option>
+            @for (l of lugares; track l.id) { <option [value]="l.id">{{ l.nombre }}</option> }
+          </select>
+        </div>
+        <div class="campo">
+          <label class="obligatorio">Fecha de incorporación</label>
+          <input type="date" class="req" formControlName="fechaIncorporacion" max="9999-12-31">
+        </div>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <h4>Contacto y otros</h4>
+      <div class="grid-2">
+        <div class="campo"><label>Dirección de domicilio</label><input formControlName="direccionDomicilio"></div>
+        <div class="campo"><label>Jefe directo</label><input formControlName="jefeDirecto"></div>
+        <div class="campo" style="grid-column: span 2;"><label>Homologar accesos desde</label><input formControlName="homologarAccesosDesde" placeholder="RUT o nombre de un usuario existente"></div>
+      </div>
+      <div class="campo toggle"><label>¿Tiene teléfono corporativo?</label><label class="switch"><input type="checkbox" formControlName="tieneTelefonoCorporativo"><span></span></label></div>
+      <div class="campo toggle"><label>¿Solicita teléfono?</label><label class="switch"><input type="checkbox" formControlName="solicitaTelefono"><span></span></label></div>
+    </section>
+
+    <section class="tarjeta">
+      <h4>Accesos a solicitar</h4>
+      <p class="subtitulo-seccion">Sistemas</p>
+      <app-selector-multiple [opciones]="sistemas" [(seleccionados)]="sistemasSel"
+        placeholder="Escribe para buscar un sistema..." vacio="Aún no has agregado sistemas." />
+      <p class="subtitulo-seccion">Carpetas de red</p>
+      <app-selector-multiple [opciones]="carpetas" [(seleccionados)]="carpetasSel"
+        placeholder="Escribe para buscar una carpeta..." vacio="Aún no has agregado carpetas." />
+</section>
+    </fieldset>
+
+    <app-aviso-plazo tipo="Ingreso" />
+    <div class="acciones">
+      <button type="button" class="btn-secundario" disabled title="Próximamente">Guardar borrador</button>
+      <button type="submit" class="btn-primario" [disabled]="enviando || !rutListo">{{ enviando ? 'Enviando...' : 'Enviar solicitud' }}</button>
+    </div>
+    <p class="nota-footer">Se notificará a tu jefe directo para aprobación.</p>
+  </form>
+</div>
